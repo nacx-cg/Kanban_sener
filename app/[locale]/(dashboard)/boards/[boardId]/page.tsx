@@ -90,7 +90,16 @@ export default async function BoardPage({
           </p>
         )}
       </div>
-      <KanbanBoard board={board} />
+      <KanbanBoard
+        board={
+          {
+            ...board,
+            columns: Array.isArray(board.columns)
+              ? (board.columns as string[])
+              : ['todo', 'inProgress', 'review', 'done'],
+          } as Parameters<typeof KanbanBoard>[0]['board']
+        }
+      />
     </div>
   );
 }

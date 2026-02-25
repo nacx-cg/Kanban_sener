@@ -21,9 +21,14 @@ import { UserCompletionMetrics } from "@/components/admin/UserCompletionMetrics"
 interface Board {
   id: string;
   name: string;
-  description?: string | null;
+  description: string | null;
   createdAt: string;
+  updatedAt: string;
+  userId: string;
   tasks: any[];
+  _count: { tasks: number };
+  user?: { name: string | null; email: string };
+  team?: { id: string; name: string; isPublic: boolean } | null;
 }
 
 export default function DashboardPage() {

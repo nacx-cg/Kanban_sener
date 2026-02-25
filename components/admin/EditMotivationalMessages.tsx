@@ -332,7 +332,7 @@ export function EditMotivationalMessages() {
                               className="text-xs text-muted-foreground opacity-60 line-through"
                             >
                               <span className="italic">
-                                "{hist.message}"
+                                &quot;{hist.message}&quot;
                               </span>
                               <span className="ml-2">
                                 - {hist.changedBy.name || hist.changedBy.email} el{' '}
