@@ -1,0 +1,104 @@
+{
+  "common": {
+    "appName": "Kanban Sener",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "close": "Close"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "confirmPassword": "Confirm Password",
+    "invalidCredentials": "Invalid credentials",
+    "emailExists": "This email is already registered",
+    "passwordMismatch": "Passwords do not match",
+    "registerSuccess": "Registration successful. Please log in."
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "boards": "Boards",
+    "settings": "Settings",
+    "profile": "Profile"
+  },
+  "board": {
+    "boardName": "Board Name",
+    "description": "Description",
+    "createBoard": "Create Board",
+    "editBoard": "Edit Board",
+    "deleteBoard": "Delete Board",
+    "columns": {
+      "todo": "To Do",
+      "inProgress": "In Progress",
+      "review": "Review",
+      "done": "Done"
+    }
+  },
+  "task": {
+    "task": "Task",
+    "title": "Title",
+    "description": "Description",
+    "workType": "Work Type",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "dueDate": "Due Date",
+    "created": "Created",
+    "started": "Started",
+    "completed": "Completed",
+    "workTypes": {
+      "feature": "Feature",
+      "bug": "Bug",
+      "task": "Task",
+      "research": "Research"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    }
+  },
+  "dashboard": {
+    "productivityMetrics": "Productivity Metrics",
+    "tasksCompleted": "Tasks Completed",
+    "completionRate": "Completion Rate",
+    "averageCompletionTime": "Average Completion Time",
+    "workPatternAnalysis": "Work Pattern Analysis",
+    "lateWork": "Late Work",
+    "weakLinks": "Weak Links",
+    "focusAreas": "Focus Areas",
+    "today": "Today",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "activeBoards": "Active Boards",
+    "allBoards": "All Boards",
+    "week": "Week"
+  },
+  "behavioral": {
+    "currentStreak": "Current Streak",
+    "weeklyGoal": "Weekly Goal",
+    "achievements": "Achievements",
+    "setGoal": "Set Goal",
+    "goalProgress": "Goal Progress"
+  },
+  "alerts": {
+    "overdueTasks": "Overdue Tasks",
+    "tasksApproachingDueDate": "Tasks Approaching Due Date",
+    "lateWorkAlert": "Late Work Alert",
+    "bottleneckWarning": "Bottleneck Warning",
+    "weakLinkHighlight": "Weak Link Highlight"
+  }
+}
+

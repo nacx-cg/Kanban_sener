@@ -1,0 +1,132 @@
+{
+  "common": {
+    "appName": "Coordinación Jurídica del Sector Eléctrico",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando...",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "sort": "Ordenar",
+    "close": "Cerrar"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "register": "Registrarse",
+    "logout": "Cerrar Sesión",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "name": "Nombre",
+    "confirmPassword": "Confirmar Contraseña",
+    "invalidCredentials": "Credenciales inválidas",
+    "emailExists": "Este correo electrónico ya está registrado",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "registerSuccess": "Registro exitoso. Por favor inicia sesión."
+  },
+  "navigation": {
+    "dashboard": "Panel",
+    "boards": "Tableros",
+    "settings": "Configuración",
+    "profile": "Perfil"
+  },
+  "board": {
+    "boardName": "Nombre del Tablero",
+    "description": "Descripción",
+    "createBoard": "Crear Tablero",
+    "editBoard": "Editar Tablero",
+    "deleteBoard": "Eliminar Tablero",
+    "confirmDeleteBoardTitle": "¿Eliminar este tablero?",
+    "confirmDeleteBoardDescription": "¿Estás seguro de que deseas eliminar el tablero \"{boardName}\"? Esta acción no se puede deshacer.",
+    "deleteBoardError": "Error al eliminar el tablero",
+    "updatePrivacyError": "Error al actualizar la privacidad del tablero",
+    "public": "Público",
+    "private": "Privado",
+    "shared": "Compartido",
+    "personal": "Personal",
+    "createdBy": "Creado por",
+    "columns": {
+      "todo": "Por Hacer",
+      "inProgress": "En Progreso",
+      "review": "Revisión",
+      "done": "Completado"
+    }
+  },
+  "task": {
+    "task": "Tarea",
+    "title": "Título",
+    "description": "Descripción",
+    "workType": "Tipo de Trabajo",
+    "priority": "Prioridad",
+    "assignee": "Asignado a",
+    "dueDate": "Fecha Límite",
+    "created": "Creado",
+    "started": "Iniciado",
+    "completed": "Completado",
+    "createTask": "Crear Tarea",
+    "addTask": "Añadir Tarea",
+    "taskTitle": "Título de la Tarea",
+    "selectAssignee": "Seleccionar Responsable",
+    "noAssignee": "Sin asignar",
+    "creating": "Creando...",
+    "taskCreated": "Tarea creada exitosamente",
+    "assignToSelfOnly": "Solo puedes asignar tareas a ti mismo en tableros compartidos",
+    "adminCanAssign": "Los administradores pueden asignar a cualquier usuario",
+    "workTypes": {
+      "feature": "Funcionalidad",
+      "bug": "Error",
+      "task": "Tarea",
+      "research": "Investigación"
+    },
+    "priorities": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "critical": "Crítica"
+    }
+  },
+  "dashboard": {
+    "productivityMetrics": "Métricas de Productividad",
+    "tasksCompleted": "Tareas Completadas",
+    "completionRate": "Tasa de Finalización",
+    "averageCompletionTime": "Tiempo Promedio de Finalización",
+    "workPatternAnalysis": "Análisis de Patrones de Trabajo",
+    "lateWork": "Trabajo Tardío",
+    "weakLinks": "Puntos Débiles",
+    "focusAreas": "Áreas de Enfoque",
+    "today": "Hoy",
+    "thisWeek": "Esta Semana",
+    "thisMonth": "Este Mes",
+    "activeBoards": "Tableros Activos",
+    "allBoards": "Todos los Tableros",
+    "week": "Semana"
+  },
+  "behavioral": {
+    "currentStreak": "Racha Actual",
+    "weeklyGoal": "Meta Semanal",
+    "achievements": "Logros",
+    "setGoal": "Establecer Meta",
+    "goalProgress": "Progreso de la Meta",
+    "motivationalMessages": {
+      "goodMorning": "¡Buenos días! ¡Vamos a hacer que este día sea productivo!",
+      "streakMilestone": "¡Increíble! Estás en una racha impresionante. ¡Sigue así!",
+      "goalProgress": "¡Estás cerca de alcanzar tu meta semanal! ¡Sigue adelante!",
+      "keepGoing": "¡Sigue adelante! Cada tarea completada te acerca a tus objetivos."
+    }
+  },
+  "alerts": {
+    "overdueTasks": "Tareas Vencidas",
+    "tasksApproachingDueDate": "Tareas Próximas a Vencer",
+    "lateWorkAlert": "Alerta de Trabajo Tardío",
+    "bottleneckWarning": "Advertencia de Cuello de Botella",
+    "weakLinkHighlight": "Resaltado de Punto Débil"
+  },
+  "admin": {
+    "badge": "Administrador",
+    "title": "Usuario Administrador"
+  }
+}
