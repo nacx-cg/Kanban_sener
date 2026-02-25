@@ -8,6 +8,12 @@ This guide walks through deploying the Kanban app to Vercel. Git is initialized 
 2. Run:
 
 ```bash
+./scripts/push-to-github.sh https://github.com/YOUR_USERNAME/Kanban_sener.git
+```
+
+Or manually:
+
+```bash
 git remote add origin https://github.com/YOUR_USERNAME/Kanban_sener.git
 git push -u origin main
 ```
