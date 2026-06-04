@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { KanbanBoard } from '@/components/board/KanbanBoard';
-import { isAdmin } from '@/lib/auth-helpers';
+import { isAdmin, isManagerUser } from '@/lib/auth-helpers';
 import { userHasBoardAccess } from '@/lib/team-helpers';
 import { Badge } from '@/components/ui/badge';
 import { getTranslations } from 'next-intl/server';
@@ -64,8 +64,17 @@ export default async function BoardPage({
   }
 
   const userIsAdmin = isAdmin(session.user.email);
+  const userIsManager = await isManagerUser(session.user.id);
+  const canArchive = userIsAdmin || userIsManager;
   const isTeamShared = board.teamId !== null;
   const isOwner = board.userId === session.user.id;
+
+  const defaultColumns = ['todo', 'inProgress', 'review', 'done'];
+  const boardColumns = Array.isArray(board.columns) ? (board.columns as string[]) : defaultColumns;
+  const columns =
+    boardColumns.filter((c) => c !== 'archivo').length > 0
+      ? boardColumns.filter((c) => c !== 'archivo')
+      : defaultColumns;
 
   return (
     <div className="container mx-auto py-8">
@@ -94,11 +103,10 @@ export default async function BoardPage({
         board={
           {
             ...board,
-            columns: Array.isArray(board.columns)
-              ? (board.columns as string[])
-              : ['todo', 'inProgress', 'review', 'done'],
+            columns,
           } as Parameters<typeof KanbanBoard>[0]['board']
         }
+        canArchive={canArchive}
       />
     </div>
   );

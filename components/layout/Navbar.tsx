@@ -60,6 +60,20 @@ export function Navbar() {
                 >
                   {t('boards')}
                 </Link>
+                <Link
+                  href="/es/meetings"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Reuniones
+                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/es/admin"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    {tAdmin('nav')}
+                  </Link>
+                )}
               </>
             )}
           </div>

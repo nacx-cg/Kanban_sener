@@ -44,7 +44,7 @@ export function RegisterForm() {
       if (!response.ok) {
         setError(data.error || 'Error al registrar');
       } else {
-        router.push(`/${locale}/login?registered=true`);
+        router.push(`/${locale}/login?registered=true&pendingApproval=true`);
       }
     } catch (err) {
       setError('Error al registrar usuario');

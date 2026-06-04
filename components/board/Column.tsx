@@ -15,6 +15,7 @@ interface ColumnProps {
   boardIsShared?: boolean;
   boardOwnerId?: string;
   isAdmin?: boolean;
+  canArchive?: boolean;
   tasks: (Task & {
     assignee: {
       id: string;
@@ -24,11 +25,13 @@ interface ColumnProps {
   })[];
   onTaskCreated?: () => void;
   onTaskDeleted?: () => void;
+  onTaskUpdated?: () => void;
+  isOver?: boolean;
 }
 
-export function Column({ id, title, boardId, boardIsShared = false, boardOwnerId, isAdmin = false, tasks, onTaskDeleted }: ColumnProps) {
+export function Column({ id, title, boardId, boardIsShared = false, boardOwnerId, isAdmin = false, canArchive = false, tasks, onTaskDeleted, onTaskUpdated, isOver = false }: ColumnProps) {
   const t = useTranslations('task');
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id,
   });
 
@@ -37,7 +40,7 @@ export function Column({ id, title, boardId, boardIsShared = false, boardOwnerId
   return (
     <Card
       ref={setNodeRef}
-      className={`flex flex-col h-full min-h-[500px] ${
+      className={`flex flex-col h-full min-h-[500px] min-w-0 ${
         isOver ? 'border-primary border-2' : ''
       }`}
     >
@@ -49,10 +52,10 @@ export function Column({ id, title, boardId, boardIsShared = false, boardOwnerId
           </span>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-2">
+      <CardContent className="flex-1 overflow-y-auto overflow-x-hidden space-y-2 min-w-0">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} boardOwnerId={boardOwnerId} isAdmin={isAdmin} onDeleted={onTaskDeleted} />
+            <TaskCard key={task.id} task={task} boardOwnerId={boardOwnerId} isAdmin={isAdmin} canArchive={canArchive} boardIsShared={boardIsShared} onDeleted={onTaskDeleted} onTaskUpdated={onTaskUpdated} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (

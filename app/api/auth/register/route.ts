@@ -30,12 +30,13 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user (pending admin approval)
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name: name || null,
+        isApproved: false,
       },
     });
 
@@ -55,7 +56,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: 'Registro exitoso', userId: user.id },
+      {
+        message:
+          'Registro exitoso. Tu cuenta está pendiente de aprobación por un administrador.',
+        userId: user.id,
+      },
       { status: 201 }
     );
   } catch (error) {

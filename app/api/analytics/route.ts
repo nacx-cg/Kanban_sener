@@ -4,8 +4,9 @@ import {
   getProductivityMetrics,
   getWorkPatternAnalysis,
   getTaskCompletionMetricsPerUser,
+  getMeetingHoursPerUser,
 } from "@/lib/analytics";
-import { isAdmin } from "@/lib/auth-helpers";
+import { isAdminUser } from "@/lib/auth-helpers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
       );
       return NextResponse.json(analysis);
     } else if (type === "user-completion") {
-      if (!isAdmin(session.user.email)) {
+      const isAdmin = await isAdminUser(session.user.id);
+      if (!isAdmin) {
         return NextResponse.json(
           { error: "Solo administradores pueden ver métricas por usuario" },
           { status: 403 }
@@ -39,6 +41,16 @@ export async function GET(request: NextRequest) {
       }
       const metrics = await getTaskCompletionMetricsPerUser();
       return NextResponse.json(metrics);
+    } else if (type === "meeting-hours") {
+      const isAdmin = await isAdminUser(session.user.id);
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: "Solo administradores pueden ver horas de reuniones" },
+          { status: 403 }
+        );
+      }
+      const data = await getMeetingHoursPerUser();
+      return NextResponse.json(data);
     }
 
     return NextResponse.json(

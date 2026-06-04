@@ -29,9 +29,19 @@ interface User {
   name: string | null;
 }
 
-interface CreateTaskFormProps {
-  boardId: string;
-  status?: string;
+interface TaskForEdit {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  assigneeId: string | null;
+  dueDate: string | Date | null;
+  assignee?: { id: string; name: string | null; email: string } | null;
+}
+
+interface EditTaskFormProps {
+  task: TaskForEdit;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -39,36 +49,41 @@ interface CreateTaskFormProps {
   boardIsShared?: boolean;
 }
 
-export function CreateTaskForm({
-  boardId,
-  status,
+export function EditTaskForm({
+  task,
   open,
   onOpenChange,
   onSuccess,
   isAdmin = false,
   boardIsShared = false,
-}: CreateTaskFormProps) {
+}: EditTaskFormProps) {
   const t = useTranslations('task');
   const tCommon = useTranslations('common');
   const { data: session } = useSession();
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<string>('medium');
-  const [assigneeId, setAssigneeId] = useState<string>('none');
-  const [dueDate, setDueDate] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>(status || 'todo');
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description || '');
+  const [assigneeId, setAssigneeId] = useState<string>(task.assigneeId || 'none');
+  const [dueDate, setDueDate] = useState(
+    task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
+  );
+  const [status, setStatus] = useState(task.status);
+  const [priority, setPriority] = useState(task.priority);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingUsers, setFetchingUsers] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch users when dialog opens
   useEffect(() => {
-    if (open && users.length === 0) {
+    if (open) {
+      setTitle(task.title);
+      setDescription(task.description || '');
+      setAssigneeId(task.assigneeId || 'none');
+      setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
+      setStatus(task.status);
+      setPriority(task.priority);
       fetchUsers();
     }
-  }, [open]);
+  }, [open, task]);
 
   const fetchUsers = async () => {
     setFetchingUsers(true);
@@ -85,16 +100,9 @@ export function CreateTaskForm({
     }
   };
 
-  // Determine which users to show in assignee dropdown
   const getAvailableUsers = () => {
-    if (!boardIsShared || isAdmin) {
-      // Show all users for personal boards or if user is admin
-      return users;
-    }
-    // For shared boards, non-admin users can only assign to themselves
-    if (session?.user?.id) {
-      return users.filter((user) => user.id === session.user.id);
-    }
+    if (!boardIsShared || isAdmin) return users;
+    if (session?.user?.id) return users.filter((u) => u.id === session.user.id);
     return [];
   };
 
@@ -103,60 +111,35 @@ export function CreateTaskForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
     if (!title.trim()) {
       setError('El título es requerido');
       return;
     }
-
     setLoading(true);
-
     try {
-      // Auto-assign to current user if board is shared and user is not admin
-      let finalAssigneeId = assigneeId;
-      if (boardIsShared && !isAdmin && session?.user?.id) {
-        finalAssigneeId = session.user.id;
-      }
-
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
+      const body: Record<string, unknown> = {
+        title: title.trim(),
+        description: description.trim() || null,
+        status,
+        priority,
+        assigneeId: assigneeId === 'none' ? null : assigneeId,
+        dueDate: dueDate || null,
+      };
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          boardId,
-          title: title.trim(),
-          description: description.trim() || undefined,
-          status: selectedStatus || 'todo',
-          assigneeId: finalAssigneeId === 'none' ? undefined : finalAssigneeId,
-          dueDate: dueDate || undefined,
-          workType: 'task',
-          priority,
-        }),
+        body: JSON.stringify(body),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        setError(data.error || 'Error al crear tarea');
+        setError(data.error || 'Error al actualizar tarea');
         return;
       }
-
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
-      // Auto-assign to current user if board is shared and user is not admin
-      if (boardIsShared && !isAdmin && session?.user?.id) {
-        setAssigneeId(session.user.id);
-      } else {
-        setAssigneeId('none');
-      }
-      setDueDate('');
-      setSelectedStatus(status || 'todo');
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      setError('Error al crear tarea');
-      console.error('Error creating task:', err);
+      setError('Error al actualizar tarea');
+      console.error('Error updating task:', err);
     } finally {
       setLoading(false);
     }
@@ -164,30 +147,17 @@ export function CreateTaskForm({
 
   const handleClose = () => {
     if (!loading) {
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
-      // Auto-assign to current user if board is shared and user is not admin
-      if (boardIsShared && !isAdmin && session?.user?.id) {
-        setAssigneeId(session.user.id);
-      } else {
-        setAssigneeId('none');
-      }
-      setDueDate('');
       setError('');
       onOpenChange(false);
     }
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('createTask')}</DialogTitle>
-          <DialogDescription>
-            {t('addTask')}
-          </DialogDescription>
+          <DialogTitle>{tCommon('edit')} {t('task')}</DialogTitle>
+          <DialogDescription>Modificar tarea: asignado, fecha límite, estado, etc.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
@@ -197,36 +167,33 @@ export function CreateTaskForm({
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="title">{t('title')} *</Label>
+              <Label htmlFor="edit-title">{t('title')} *</Label>
               <Input
-                id="title"
+                id="edit-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 disabled={loading}
-                placeholder={t('taskTitle')}
-                autoFocus
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">{t('description')}</Label>
+              <Label htmlFor="edit-description">{t('description')}</Label>
               <Textarea
-                id="description"
+                id="edit-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={loading}
                 rows={2}
-                placeholder="Descripción de la tarea (opcional)"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="assignee">{t('assignee')}</Label>
+              <Label htmlFor="edit-assignee">{t('assignee')}</Label>
               <Select
                 value={assigneeId}
                 onValueChange={setAssigneeId}
                 disabled={loading || fetchingUsers || (boardIsShared && !isAdmin)}
               >
-                <SelectTrigger id="assignee">
+                <SelectTrigger id="edit-assignee">
                   <SelectValue placeholder={t('selectAssignee')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,50 +205,23 @@ export function CreateTaskForm({
                   ))}
                 </SelectContent>
               </Select>
-              {boardIsShared && !isAdmin && (
-                <p className="text-xs text-muted-foreground">
-                  {t('assignToSelfOnly')}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dueDate">{t('dueDate')}</Label>
+              <Label htmlFor="edit-dueDate">{t('dueDate')}</Label>
               <Input
-                id="dueDate"
+                id="edit-dueDate"
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 disabled={loading}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">{t('priority')}</Label>
-              <Select
-                value={priority}
-                onValueChange={setPriority}
-                disabled={loading}
-              >
-                <SelectTrigger id="priority">
-                  <SelectValue placeholder={t('priority')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Baja</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="critical">Crítica</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {!status && (
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="status">Estado</Label>
-                <Select
-                  value={selectedStatus}
-                  onValueChange={setSelectedStatus}
-                  disabled={loading}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Seleccionar estado" />
+                <Label>Estado</Label>
+                <Select value={status} onValueChange={setStatus} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todo">Por Hacer</SelectItem>
@@ -291,25 +231,32 @@ export function CreateTaskForm({
                   </SelectContent>
                 </Select>
               </div>
-            )}
+              <div className="space-y-2">
+                <Label>{t('priority')}</Label>
+                <Select value={priority} onValueChange={setPriority} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baja</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="critical">Crítica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={loading}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
               {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={loading || !title.trim()}>
-              {loading ? t('creating') : tCommon('create')}
+              {loading ? 'Guardando...' : tCommon('save')}
             </Button>
           </DialogFooter>
         </form>
-        </DialogContent>
-      </Dialog>
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }
-

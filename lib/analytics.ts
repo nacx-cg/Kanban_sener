@@ -346,3 +346,111 @@ export async function getTaskCompletionMetricsPerUser(): Promise<
   return metrics.sort((a, b) => b.totalCompleted - a.totalCompleted);
 }
 
+export interface MeetingHoursPerUser {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  totalHours: number;
+  meetings: Array<{ meetingId: string; meetingTitle: string; hours: number }>;
+}
+
+/**
+ * Get meeting hours per user (for admin analytics).
+ * Returns users with their total meeting hours and breakdown by meeting.
+ */
+export async function getMeetingHoursPerUser(): Promise<{
+  users: MeetingHoursPerUser[];
+  meetings: Array<{ id: string; title: string }>;
+  byDay: Array<Record<string, string | number>>;
+  byDayMeetingDetails: Record<
+    string,
+    Record<string, Array<{ meetingTitle: string; hours: number }>>
+  >;
+}> {
+  const meetings = await prisma.meeting.findMany({
+    include: {
+      attendants: true,
+    },
+    orderBy: { date: 'desc' },
+  });
+
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true, email: true },
+  });
+
+  const usersWithHours: MeetingHoursPerUser[] = users.map((user) => {
+    let totalHours = 0;
+    const meetingBreakdown: Array<{ meetingId: string; meetingTitle: string; hours: number }> = [];
+
+    for (const meeting of meetings) {
+      const att = meeting.attendants.find(
+        (a: { userId: string }) => a.userId === user.id
+      );
+      const hours = att ? meeting.hoursAttended : 0;
+      if (hours > 0) {
+        totalHours += hours;
+        meetingBreakdown.push({
+          meetingId: meeting.id,
+          meetingTitle: meeting.title || `Reunión ${meeting.date.toISOString().slice(0, 10)}`,
+          hours,
+        });
+      }
+    }
+
+    return {
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      totalHours,
+      meetings: meetingBreakdown,
+    };
+  });
+
+  const filtered = usersWithHours
+    .filter((u) => u.totalHours > 0)
+    .sort((a, b) => b.totalHours - a.totalHours);
+
+  // Build byDay: one row per date, hours per user (for stacked bar: X=day, Y=hours, stack=user)
+  // Build byDayMeetingDetails: per (date, userId) list of meetings with titles for tooltip
+  const dateToRow = new Map<string, Record<string, string | number>>();
+  const byDayMeetingDetails: Record<
+    string,
+    Record<string, Array<{ meetingTitle: string; hours: number }>>
+  > = {};
+  for (const meeting of meetings) {
+    const dateStr = meeting.date.toISOString().slice(0, 10);
+    const meetingTitle =
+      meeting.title || `Reunión ${meeting.date.toISOString().slice(0, 10)}`;
+    if (!dateToRow.has(dateStr)) {
+      dateToRow.set(dateStr, { date: dateStr });
+      byDayMeetingDetails[dateStr] = {};
+    }
+    const row = dateToRow.get(dateStr)!;
+    for (const att of meeting.attendants) {
+      const key = att.userId;
+      (row as Record<string, number>)[key] =
+        ((row[key] as number) || 0) + meeting.hoursAttended;
+      if (!byDayMeetingDetails[dateStr][key]) {
+        byDayMeetingDetails[dateStr][key] = [];
+      }
+      byDayMeetingDetails[dateStr][key].push({
+        meetingTitle,
+        hours: meeting.hoursAttended,
+      });
+    }
+  }
+  const byDay = Array.from(dateToRow.values()).sort(
+    (a, b) => (a.date as string).localeCompare(b.date as string)
+  );
+
+  return {
+    users: filtered,
+    meetings: meetings.map((m: { id: string; title: string | null; date: Date }) => ({
+      id: m.id,
+      title: m.title || `Reunión ${m.date.toISOString().slice(0, 10)}`,
+    })),
+    byDay,
+    byDayMeetingDetails,
+  };
+}
+

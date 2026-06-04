@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { isAdmin } from '@/lib/auth-helpers';
+import { isAdminUser, isManagerUser } from '@/lib/auth-helpers';
 
 export async function GET() {
   try {
@@ -24,11 +24,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    const adminStatus = isAdmin(user.email);
+    const [adminStatus, managerStatus] = await Promise.all([
+      isAdminUser(session.user.id),
+      isManagerUser(session.user.id),
+    ]);
 
     return NextResponse.json({
       ...user,
       isAdmin: adminStatus,
+      isManager: managerStatus,
     });
   } catch (error) {
     console.error('Error fetching current user:', error);

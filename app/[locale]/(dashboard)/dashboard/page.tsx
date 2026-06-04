@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -17,6 +17,10 @@ import { ActiveBoardsViewer } from "@/components/dashboard/ActiveBoardsViewer";
 import { AllBoardsViewer } from "@/components/dashboard/AllBoardsViewer";
 import { EditMotivationalMessages } from "@/components/admin/EditMotivationalMessages";
 import { UserCompletionMetrics } from "@/components/admin/UserCompletionMetrics";
+import { AssignedTasksPerUserChart } from "@/components/admin/AssignedTasksPerUserChart";
+import { MeetingHoursPerUserChart } from "@/components/admin/MeetingHoursPerUserChart";
+import { MyAssignedTasksViewer } from "@/components/dashboard/MyAssignedTasksViewer";
+import { CompletedArchivedTasksViewer } from "@/components/dashboard/CompletedArchivedTasksViewer";
 
 interface Board {
   id: string;
@@ -34,26 +38,31 @@ interface Board {
 export default function DashboardPage() {
   const t = useTranslations();
   const router = useRouter();
+  const params = useParams<{ locale: string }>();
+  const locale = typeof params?.locale === "string" ? params.locale : "es";
   const { data: session, status } = useSession();
-  const [boards, setBoards] = useState<Board[]>([]);
+  const [publicBoards, setPublicBoards] = useState<Board[]>([]);
+  const [privateBoards, setPrivateBoards] = useState<Board[]>([]);
   const [productivityMetrics, setProductivityMetrics] = useState<any>(null);
   const [workPatternAnalysis, setWorkPatternAnalysis] = useState<any>(null);
   const [userStats, setUserStats] = useState<any>(null);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "analytics" | "motivation" | "alerts" | "messages">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "myTasks" | "lista" | "analytics" | "motivation" | "alerts" | "messages">("overview");
 
   useEffect(() => {
+    if (status === "loading") return;
+
     if (status === "unauthenticated") {
-      router.push("/es/login");
+      router.replace(`/${locale}/login`);
       return;
     }
 
     if (status === "authenticated") {
       fetchData();
     }
-  }, [status]);
+  }, [status, locale, router]);
 
   const fetchData = async () => {
     try {
@@ -73,7 +82,8 @@ export default function DashboardPage() {
 
       if (boardsRes.ok) {
         const boardsData = await boardsRes.json();
-        setBoards(boardsData);
+        setPublicBoards(boardsData.publicBoards || []);
+        setPrivateBoards(boardsData.privateBoards || []);
       }
 
       if (metricsRes.ok) {
@@ -145,6 +155,26 @@ export default function DashboardPage() {
             Resumen
           </button>
           <button
+            onClick={() => setActiveTab("myTasks")}
+            className={`px-4 py-2 font-medium ${
+              activeTab === "myTasks"
+                ? "border-b-2 border-indigo-600 text-indigo-600"
+                : "text-gray-600"
+            }`}
+          >
+            Mis Tareas
+          </button>
+          <button
+            onClick={() => setActiveTab("lista")}
+            className={`px-4 py-2 font-medium ${
+              activeTab === "lista"
+                ? "border-b-2 border-indigo-600 text-indigo-600"
+                : "text-gray-600"
+            }`}
+          >
+            Lista
+          </button>
+          <button
             onClick={() => setActiveTab("analytics")}
             className={`px-4 py-2 font-medium ${
               activeTab === "analytics"
@@ -193,17 +223,51 @@ export default function DashboardPage() {
             <ProductivityMetrics metrics={productivityMetrics} />
           )}
 
-          {/* Active Boards Viewer - shows only boards with tasks */}
-          <div className="space-y-6">
+          {/* User panel - private boards on top */}
+          {privateBoards.length > 0 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">Panel del usuario — Mis tableros privados</h2>
+              <AllBoardsViewer
+                boards={privateBoards}
+                onReordered={fetchData}
+                showRanking={false}
+              />
+            </div>
+          )}
+
+          {/* Active Boards Viewer - public boards with tasks only */}
+          <div className="space-y-6 mt-8">
             <h2 className="text-2xl font-bold">{t("dashboard.activeBoards")}</h2>
-            <ActiveBoardsViewer boards={boards} />
+            <ActiveBoardsViewer
+              boards={publicBoards}
+              onReordered={fetchData}
+              showRanking
+            />
           </div>
 
-          {/* All Boards Viewer - shows all boards including empty ones */}
+          {/* All Boards Viewer - all public boards */}
           <div className="space-y-6 mt-8">
             <h2 className="text-2xl font-bold">{t("dashboard.allBoards")}</h2>
-            <AllBoardsViewer boards={boards} />
+            <AllBoardsViewer
+              boards={publicBoards}
+              onReordered={fetchData}
+              showRanking
+            />
           </div>
+        </div>
+      )}
+
+      {activeTab === "myTasks" && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold">Mis Tareas Asignadas</h2>
+          <MyAssignedTasksViewer />
+        </div>
+      )}
+
+      {activeTab === "lista" && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold">Tareas Completadas y Archivadas</h2>
+          <CompletedArchivedTasksViewer />
         </div>
       )}
 
@@ -213,7 +277,9 @@ export default function DashboardPage() {
             <WorkPatternChart analysis={workPatternAnalysis} />
           )}
           {isAdmin && (
-            <div>
+            <div className="space-y-6">
+              <AssignedTasksPerUserChart />
+              <MeetingHoursPerUserChart />
               <UserCompletionMetrics />
             </div>
           )}

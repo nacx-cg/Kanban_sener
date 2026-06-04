@@ -10,8 +10,12 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // Get all users for assignee dropdown
+    // Get users for assignee dropdown (exclude blocked and hidden)
     const users = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        isHidden: false,
+      },
       select: {
         id: true,
         email: true,

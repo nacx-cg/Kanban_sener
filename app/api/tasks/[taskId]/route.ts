@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { userHasBoardAccess } from '@/lib/team-helpers';
-import { isAdmin } from '@/lib/auth-helpers';
+import { isAdmin, isAdminOrManagerUser } from '@/lib/auth-helpers';
 import { z } from 'zod';
 import { writeAuditLog } from '@/lib/audit';
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   workType: z.enum(['feature', 'bug', 'task', 'research']).optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-  status: z.enum(['todo', 'inProgress', 'review', 'done']).optional(),
+  status: z.enum(['todo', 'inProgress', 'review', 'done', 'archivo']).optional(),
   assigneeId: z.string().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
@@ -116,29 +116,50 @@ export async function PATCH(
     const oldStatus = task.status;
     const newStatus = data.status || task.status;
 
-    // Update timestamps based on status changes
-    const updateData: any = { ...data, assigneeId: finalAssigneeId };
-    
+    // Archive: only admin or manager can move from done to archivo
+    if (newStatus === 'archivo') {
+      if (oldStatus !== 'done') {
+        return NextResponse.json(
+          { error: 'Solo se pueden archivar tareas completadas' },
+          { status: 400 }
+        );
+      }
+      const canArchive = await isAdminOrManagerUser(session.user.id);
+      if (!canArchive) {
+        return NextResponse.json(
+          { error: 'Solo administradores y managers pueden archivar tareas' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Build update payload - only include defined fields with correct types
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description || null;
+    if (data.workType !== undefined) updateData.workType = data.workType;
+    if (data.priority !== undefined) updateData.priority = data.priority;
+    if (data.status !== undefined) updateData.status = data.status;
+    updateData.assigneeId = finalAssigneeId;
+    if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+
     if (newStatus === 'inProgress' && oldStatus !== 'inProgress' && !task.startedAt) {
       updateData.startedAt = new Date();
     }
 
     if (newStatus === 'done' && oldStatus !== 'done') {
       updateData.completedAt = new Date();
-      
+
       // Update streak and check achievements
       const { updateStreak, checkAndUnlockAchievements } = await import('@/lib/achievements');
       await updateStreak(session.user.id);
       await checkAndUnlockAchievements(session.user.id);
     }
 
-    if (data.dueDate !== undefined) {
-      updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
-    }
-
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
-      data: updateData,
+      data: updateData as Parameters<typeof prisma.task.update>[0]['data'],
       include: {
         assignee: {
           select: {

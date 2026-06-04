@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { signIn } from 'next-auth/react';
-import { useParams, useRouter } from 'next/navigation';
+import { getSession, signIn } from 'next-auth/react';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,13 +12,20 @@ import Link from 'next/link';
 
 export function LoginForm() {
   const t = useTranslations('auth');
-  const router = useRouter();
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'es';
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true' && searchParams.get('pendingApproval') === 'true') {
+      setInfo('Registro exitoso. Tu cuenta está pendiente de aprobación por un administrador. Podrás iniciar sesión cuando sea aprobada.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +40,15 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        setError(t('invalidCredentials'));
-      } else {
-        router.push(`/${locale}/dashboard`);
-        router.refresh();
+        setError(
+          result.error === 'CredentialsSignin'
+            ? t('invalidCredentials')
+            : result.error
+        );
+      } else if (result?.ok) {
+        // Wait for session cookie before navigating (avoids dashboard kicking back to login)
+        await getSession();
+        window.location.assign(`/${locale}/dashboard`);
       }
     } catch (err) {
       setError(t('invalidCredentials'));
@@ -55,6 +67,11 @@ export function LoginForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {info && (
+            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
+              {info}
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
               {error}

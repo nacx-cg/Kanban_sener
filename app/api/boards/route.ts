@@ -44,52 +44,55 @@ export async function GET() {
       // Continue even if this fails
     }
 
-    const boards = await prisma.board.findMany({
-      where: {
-        OR: [
-          { userId: session.user.id }, // User owns the board (including private ones with teamId: null)
-          {
-            teamId: { not: null }, // Only boards with a team (public/shared boards)
-            team: {
-              members: {
-                some: { userId: session.user.id },
+    const [boards, orders] = await Promise.all([
+      prisma.board.findMany({
+        where: {
+          OR: [
+            { userId: session.user.id },
+            {
+              teamId: { not: null },
+              team: {
+                members: {
+                  some: { userId: session.user.id },
+                },
               },
             },
-          }, // User is member of team that owns the board
-        ],
-      },
-      include: {
-        _count: {
-          select: { tasks: true },
+          ],
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        include: {
+          _count: { select: { tasks: true } },
+          user: { select: { id: true, name: true, email: true } },
+          team: { select: { id: true, name: true, isPublic: true } },
+          tasks: { select: { id: true, status: true, completedAt: true } },
         },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            isPublic: true,
-          },
-        },
-        tasks: {
-          select: {
-            id: true,
-            status: true,
-            completedAt: true,
-          },
-        },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    });
+      }),
+      prisma.boardOrder.findMany({
+        where: { userId: session.user.id },
+        select: { boardId: true, position: true },
+      }),
+    ]);
 
-    return NextResponse.json(boards);
+    const publicBoards = boards.filter((b) => b.teamId != null);
+    const privateBoards = boards.filter(
+      (b) => b.teamId == null && b.userId === session.user.id
+    );
+
+    const orderMap = new Map(orders.map((o) => [o.boardId, o.position]));
+    const sortedPublic = publicBoards.sort((a, b) => {
+      const posA = orderMap.get(a.id) ?? 999999;
+      const posB = orderMap.get(b.id) ?? 999999;
+      if (posA !== posB) return posA - posB;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+    const sortedPrivate = privateBoards.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+
+    return NextResponse.json({
+      publicBoards: sortedPublic,
+      privateBoards: sortedPrivate,
+    });
   } catch (error) {
     console.error('Error fetching boards:', error);
     return NextResponse.json(

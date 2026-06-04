@@ -127,6 +127,19 @@
   },
   "admin": {
     "badge": "Administrador",
-    "title": "Usuario Administrador"
+    "title": "Usuario Administrador",
+    "nav": "Admin",
+    "tabs": {
+      "messages": "Mensajes",
+      "tasks": "Tareas",
+      "users": "Usuarios"
+    },
+    "assignedTasksChart": "Tareas asignadas por usuario"
+  },
+  "meetings": {
+    "title": "Reuniones",
+    "register": "Registrar Reunión",
+    "attendants": "Asistentes",
+    "hoursAttended": "Horas asistidas"
   }
 }

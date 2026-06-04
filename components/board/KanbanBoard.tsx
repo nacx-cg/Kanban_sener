@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragStartEvent,
+  DragOverEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -37,11 +38,13 @@ interface KanbanBoardProps {
       } | null;
     })[];
   };
+  canArchive?: boolean;
 }
 
-export function KanbanBoard({ board }: KanbanBoardProps) {
+export function KanbanBoard({ board, canArchive = false }: KanbanBoardProps) {
   const [tasks, setTasks] = useState(board.tasks);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const columns = (board.columns as string[]) || ['todo', 'inProgress', 'review', 'done'];
   const [isAdmin, setIsAdmin] = useClientState(false);
   const [openCreate, setOpenCreate] = useClientState(false);
@@ -80,9 +83,18 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     setActiveId(event.active.id as string);
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    setOverId(event.over?.id as string ?? null);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    setOverId(null);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:handleDragEnd',message:'Drag end',data:{hasOver:!!over,overId:over?.id,activeId:active?.id,columns},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (!over) return;
 
@@ -93,8 +105,18 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     const activeTask = tasks.find((t) => t.id === activeId);
     if (!activeTask) return;
 
-    // Check if dropping on a column
-    const targetColumn = columns.find((col) => col === overId);
+    // Resolve target column: overId can be column id (empty column) or task id (column with tasks)
+    let targetColumn = columns.find((col) => col === overId);
+    if (!targetColumn) {
+      const overTask = tasks.find((t) => t.id === overId);
+      if (overTask) targetColumn = overTask.status;
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:targetColumn',message:'Target resolved',data:{targetColumn,activeStatus:activeTask.status,willCrossColumn:!!(targetColumn&&targetColumn!==activeTask.status)},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
+    // Check if dropping on a different column
     if (targetColumn && targetColumn !== activeTask.status) {
       // Update task status
       try {
@@ -104,6 +126,9 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
           body: JSON.stringify({ status: targetColumn }),
         });
 
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:PATCH',message:'API response',data:{ok:response.ok,status:response.status,targetColumn},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         if (response.ok) {
           const updatedTask = await response.json();
           setTasks((prevTasks) =>
@@ -114,6 +139,9 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         }
       } catch (error) {
         console.error('Error updating task:', error);
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:catch',message:'PATCH error',data:{errorMessage:(error as Error)?.message},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
       }
       return;
     }
@@ -136,8 +164,9 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="flex justify-end mb-4">
@@ -151,7 +180,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         isAdmin={isAdmin}
         boardIsShared={board.teamId !== null}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         {columns.map((columnId) => (
           <Column
             key={columnId}
@@ -161,16 +190,19 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
             boardIsShared={board.teamId !== null}
             boardOwnerId={board.userId}
             isAdmin={isAdmin}
+            canArchive={canArchive}
             tasks={getTasksByColumn(columnId)}
             onTaskCreated={refreshTasks}
             onTaskDeleted={refreshTasks}
+            onTaskUpdated={refreshTasks}
+            isOver={overId === columnId || (!!overId && getTasksByColumn(columnId).some((t) => t.id === overId))}
           />
         ))}
       </div>
       <DragOverlay>
         {activeTask ? (
           <div className="opacity-80">
-            <TaskCard task={activeTask} boardOwnerId={board.userId} isAdmin={isAdmin} onDeleted={refreshTasks} />
+            <TaskCard task={activeTask} boardOwnerId={board.userId} isAdmin={isAdmin} canArchive={canArchive} boardIsShared={board.teamId !== null} onDeleted={refreshTasks} onTaskUpdated={refreshTasks} />
           </div>
         ) : null}
       </DragOverlay>

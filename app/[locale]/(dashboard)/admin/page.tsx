@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { isAdmin } from '@/lib/auth-helpers';
-import { EditMotivationalMessages } from '@/components/admin/EditMotivationalMessages';
+import { isAdminUser } from '@/lib/auth-helpers';
+import { AdminPageContent } from '@/components/admin/AdminPageContent';
 
 export default async function AdminPage() {
   const session = await auth();
@@ -10,13 +10,15 @@ export default async function AdminPage() {
     redirect('/es/login');
   }
 
-  if (!isAdmin(session.user.email)) {
+  const userIsAdmin = await isAdminUser(session.user.id);
+  if (!userIsAdmin) {
     redirect('/es/dashboard');
   }
 
   return (
     <div className="container mx-auto py-8">
-      <EditMotivationalMessages />
+      <h1 className="text-3xl font-bold mb-6">Panel de Administración</h1>
+      <AdminPageContent />
     </div>
   );
 }
