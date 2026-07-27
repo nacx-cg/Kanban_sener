@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProductivityMetrics } from "@/components/dashboard/ProductivityMetrics";
 import { WorkPatternChart } from "@/components/analytics/WorkPatternChart";
@@ -35,12 +34,21 @@ interface Board {
   team?: { id: string; name: string; isPublic: boolean } | null;
 }
 
+type DashboardTab =
+  | "overview"
+  | "myTasks"
+  | "lista"
+  | "analytics"
+  | "motivation"
+  | "alerts"
+  | "messages";
+
 export default function DashboardPage() {
   const t = useTranslations();
   const router = useRouter();
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === "string" ? params.locale : "es";
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [publicBoards, setPublicBoards] = useState<Board[]>([]);
   const [privateBoards, setPrivateBoards] = useState<Board[]>([]);
   const [productivityMetrics, setProductivityMetrics] = useState<any>(null);
@@ -49,7 +57,92 @@ export default function DashboardPage() {
   const [achievements, setAchievements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "myTasks" | "lista" | "analytics" | "motivation" | "alerts" | "messages">("overview");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+
+  const loadedExtras = useRef({
+    overview: false,
+    analytics: false,
+    motivation: false,
+  });
+
+  const fetchBoards = useCallback(async () => {
+    const [boardsRes, meRes] = await Promise.all([
+      fetch("/api/boards"),
+      fetch("/api/users/me"),
+    ]);
+
+    if (meRes.ok) {
+      const meData = await meRes.json();
+      setIsAdmin(meData.isAdmin ?? false);
+    }
+
+    if (boardsRes.ok) {
+      const boardsData = await boardsRes.json();
+      setPublicBoards(boardsData.publicBoards || []);
+      setPrivateBoards(boardsData.privateBoards || []);
+    }
+  }, []);
+
+  const fetchOverviewExtras = useCallback(async () => {
+    if (loadedExtras.current.overview) return;
+    loadedExtras.current.overview = true;
+
+    try {
+      const [metricsRes, statsRes] = await Promise.all([
+        fetch("/api/analytics?type=productivity"),
+        fetch("/api/user-stats"),
+      ]);
+
+      if (metricsRes.ok) {
+        setProductivityMetrics(await metricsRes.json());
+      }
+      if (statsRes.ok) {
+        setUserStats(await statsRes.json());
+      }
+    } catch (error) {
+      console.error("Error fetching overview extras:", error);
+      loadedExtras.current.overview = false;
+    }
+  }, []);
+
+  const fetchAnalyticsExtras = useCallback(async () => {
+    if (loadedExtras.current.analytics) return;
+    loadedExtras.current.analytics = true;
+
+    try {
+      const analysisRes = await fetch("/api/analytics?type=work-patterns");
+      if (analysisRes.ok) {
+        setWorkPatternAnalysis(await analysisRes.json());
+      }
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      loadedExtras.current.analytics = false;
+    }
+  }, []);
+
+  const fetchMotivationExtras = useCallback(async () => {
+    if (loadedExtras.current.motivation) return;
+    loadedExtras.current.motivation = true;
+
+    try {
+      const requests: Promise<Response>[] = [fetch("/api/achievements")];
+      if (!userStats) {
+        requests.push(fetch("/api/user-stats"));
+      }
+
+      const [achievementsRes, statsRes] = await Promise.all(requests);
+
+      if (achievementsRes.ok) {
+        setAchievements(await achievementsRes.json());
+      }
+      if (statsRes?.ok) {
+        setUserStats(await statsRes.json());
+      }
+    } catch (error) {
+      console.error("Error fetching motivation data:", error);
+      loadedExtras.current.motivation = false;
+    }
+  }, [userStats]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -60,57 +153,38 @@ export default function DashboardPage() {
     }
 
     if (status === "authenticated") {
-      fetchData();
+      (async () => {
+        try {
+          await fetchBoards();
+        } catch (error) {
+          console.error("Error fetching boards:", error);
+        } finally {
+          setLoading(false);
+        }
+        // Non-blocking: metrics + streak banner after first paint
+        void fetchOverviewExtras();
+      })();
     }
-  }, [status, locale, router]);
+  }, [status, locale, router, fetchBoards, fetchOverviewExtras]);
 
-  const fetchData = async () => {
-    try {
-      const [boardsRes, metricsRes, analysisRes, statsRes, achievementsRes, meRes] = await Promise.all([
-        fetch("/api/boards"),
-        fetch("/api/analytics?type=productivity"),
-        fetch("/api/analytics?type=work-patterns"),
-        fetch("/api/user-stats"),
-        fetch("/api/achievements"),
-        fetch("/api/users/me"),
-      ]);
+  useEffect(() => {
+    if (loading || status !== "authenticated") return;
 
-      if (meRes.ok) {
-        const meData = await meRes.json();
-        setIsAdmin(meData.isAdmin ?? false);
-      }
-
-      if (boardsRes.ok) {
-        const boardsData = await boardsRes.json();
-        setPublicBoards(boardsData.publicBoards || []);
-        setPrivateBoards(boardsData.privateBoards || []);
-      }
-
-      if (metricsRes.ok) {
-        const metricsData = await metricsRes.json();
-        setProductivityMetrics(metricsData);
-      }
-
-      if (analysisRes.ok) {
-        const analysisData = await analysisRes.json();
-        setWorkPatternAnalysis(analysisData);
-      }
-
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setUserStats(statsData);
-      }
-
-      if (achievementsRes.ok) {
-        const achievementsData = await achievementsRes.json();
-        setAchievements(achievementsData);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
+    if (activeTab === "overview") {
+      void fetchOverviewExtras();
+    } else if (activeTab === "analytics") {
+      void fetchAnalyticsExtras();
+    } else if (activeTab === "motivation") {
+      void fetchMotivationExtras();
     }
-  };
+  }, [
+    activeTab,
+    loading,
+    status,
+    fetchOverviewExtras,
+    fetchAnalyticsExtras,
+    fetchMotivationExtras,
+  ]);
 
   if (loading) {
     return (
@@ -127,7 +201,7 @@ export default function DashboardPage() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{t("navigation.dashboard")}</h1>
-        <Button onClick={() => router.push("/es/boards/new")}>
+        <Button onClick={() => router.push(`/${locale}/boards/new`)}>
           {t("board.createBoard")}
         </Button>
       </div>
@@ -223,34 +297,31 @@ export default function DashboardPage() {
             <ProductivityMetrics metrics={productivityMetrics} />
           )}
 
-          {/* User panel - private boards on top */}
           {privateBoards.length > 0 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold">Panel del usuario — Mis tableros privados</h2>
               <AllBoardsViewer
                 boards={privateBoards}
-                onReordered={fetchData}
+                onReordered={fetchBoards}
                 showRanking={false}
               />
             </div>
           )}
 
-          {/* Active Boards Viewer - public boards with tasks only */}
           <div className="space-y-6 mt-8">
             <h2 className="text-2xl font-bold">{t("dashboard.activeBoards")}</h2>
             <ActiveBoardsViewer
               boards={publicBoards}
-              onReordered={fetchData}
+              onReordered={fetchBoards}
               showRanking
             />
           </div>
 
-          {/* All Boards Viewer - all public boards */}
           <div className="space-y-6 mt-8">
             <h2 className="text-2xl font-bold">{t("dashboard.allBoards")}</h2>
             <AllBoardsViewer
               boards={publicBoards}
-              onReordered={fetchData}
+              onReordered={fetchBoards}
               showRanking
             />
           </div>
@@ -273,8 +344,10 @@ export default function DashboardPage() {
 
       {activeTab === "analytics" && (
         <div className="space-y-6">
-          {workPatternAnalysis && (
+          {workPatternAnalysis ? (
             <WorkPatternChart analysis={workPatternAnalysis} />
+          ) : (
+            <p className="text-muted-foreground">Cargando analíticas...</p>
           )}
           {isAdmin && (
             <div className="space-y-6">
@@ -315,7 +388,6 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-
         </div>
       )}
 
