@@ -28,7 +28,7 @@ export interface BoardListItem {
     isPublic?: boolean;
   } | null;
   user?: {
-    id: string;
+    id?: string;
     name: string | null;
     email: string;
   } | null;
