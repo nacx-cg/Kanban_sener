@@ -92,10 +92,6 @@ export function KanbanBoard({ board, canArchive = false }: KanbanBoardProps) {
     setActiveId(null);
     setOverId(null);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:handleDragEnd',message:'Drag end',data:{hasOver:!!over,overId:over?.id,activeId:active?.id,columns},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     if (!over) return;
 
     const activeId = active.id as string;
@@ -112,10 +108,6 @@ export function KanbanBoard({ board, canArchive = false }: KanbanBoardProps) {
       if (overTask) targetColumn = overTask.status;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:targetColumn',message:'Target resolved',data:{targetColumn,activeStatus:activeTask.status,willCrossColumn:!!(targetColumn&&targetColumn!==activeTask.status)},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-
     // Check if dropping on a different column
     if (targetColumn && targetColumn !== activeTask.status) {
       // Update task status
@@ -126,9 +118,6 @@ export function KanbanBoard({ board, canArchive = false }: KanbanBoardProps) {
           body: JSON.stringify({ status: targetColumn }),
         });
 
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:PATCH',message:'API response',data:{ok:response.ok,status:response.status,targetColumn},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         if (response.ok) {
           const updatedTask = await response.json();
           setTasks((prevTasks) =>
@@ -139,9 +128,6 @@ export function KanbanBoard({ board, canArchive = false }: KanbanBoardProps) {
         }
       } catch (error) {
         console.error('Error updating task:', error);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/af67bc54-208b-4989-a193-55c9a1a2b16e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a4d20f'},body:JSON.stringify({sessionId:'a4d20f',location:'KanbanBoard:catch',message:'PATCH error',data:{errorMessage:(error as Error)?.message},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
       }
       return;
     }
