@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { prisma } from './db';
 import bcrypt from 'bcryptjs';
@@ -8,6 +8,14 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
+
+class PendingApprovalError extends CredentialsSignin {
+  code = 'pending_approval';
+}
+
+class AccountBlockedError extends CredentialsSignin {
+  code = 'account_blocked';
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -34,11 +42,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (!user.isApproved) {
-          throw new Error('Cuenta pendiente de aprobación por un administrador');
+          throw new PendingApprovalError();
         }
 
         if (!user.isActive) {
-          throw new Error('Cuenta bloqueada');
+          throw new AccountBlockedError();
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);

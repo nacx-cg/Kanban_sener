@@ -40,11 +40,18 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        setError(
-          result.error === 'CredentialsSignin'
-            ? t('invalidCredentials')
-            : result.error
-        );
+        const code = result.error;
+        if (code === 'pending_approval' || code.includes('pending_approval')) {
+          setError('Cuenta pendiente de aprobación por un administrador');
+        } else if (code === 'account_blocked' || code.includes('account_blocked')) {
+          setError('Cuenta bloqueada');
+        } else if (code === 'Configuration') {
+          setError('Error de configuración de autenticación. Intenta de nuevo en unos minutos.');
+        } else if (code === 'CredentialsSignin') {
+          setError(t('invalidCredentials'));
+        } else {
+          setError(t('invalidCredentials'));
+        }
       } else if (result?.ok) {
         // Wait for session cookie before navigating (avoids dashboard kicking back to login)
         await getSession();
